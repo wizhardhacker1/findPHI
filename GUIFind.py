@@ -1,7 +1,7 @@
 import os
-import re
 import docx
 import openpyxl
+import re  # Import the 're' module
 from PyPDF2 import PdfReader
 import warnings
 import threading
@@ -24,6 +24,15 @@ def get_password(timeout):
     input_thread.join(timeout)
     return password
 
+# Function to search for patterns within words using regular expressions
+def search_within_words(text, patterns):
+    found = {}
+    for pattern in patterns:
+        found[pattern] = []
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            found[pattern].append(match.group(0))
+    return found
+
 # Function to search and report
 def search_and_report():
     network_share_path = entry_search_path.get()
@@ -33,15 +42,12 @@ def search_and_report():
     button_search.config(state=tk.DISABLED)
     label_status.config(text="Searching, please wait...")
 
-    # Define regular expressions for expected SSN and DOB formats
-    ssn_pattern = r"\b\d{3}-\d{2}-\d{4}\b"  # Matches XXX-XX-XXXX
-    dob_pattern = r"\b\d{2}/\d{2}/\d{4}\b"  # Matches XX/XX/XXXX
-
-    # Define a simple pattern to search for the word "password"
-    password_pattern = r"\bpassword\b"  # Matches the word "password"
-
-    search_phrases = [ssn_pattern, dob_pattern, password_pattern, "birthdate"]
-    file_extensions = ["docx", "xlsx", "pdf"]
+    search_patterns = [
+        r'\d{3}-\d{2}-\d{4}',  # SSN-like pattern
+        r'\d{2}/\d{2}/\d{4}',  # DOB-like pattern (XX/XX/XXXX)
+        r'\d{2}-\d{2}-\d{4}',  # DOB-like pattern (XX-XX-XXXX)
+        r'[A-Za-z\d@$!%*?&]{8,}'  # Password-like pattern
+    ]
 
     # Use a context manager to open the output file for writing
     with open(output_file_path, 'a') as f:
@@ -49,7 +55,7 @@ def search_and_report():
             for file in files:
                 file_path = os.path.join(root, file)
                 file_ext = file.split(".")[-1].lower()
-                if file_ext in file_extensions:
+                if file_ext in ["docx", "xlsx", "pdf"]:
                     try:
                         # Skip temporary Word files
                         if file.startswith("~$"):
@@ -86,17 +92,13 @@ def search_and_report():
                                 page_contents.append(page_text)
                             file_contents = "\n".join(page_contents)
 
-                        for search_phrase in search_phrases:
-                            if isinstance(search_phrase, str):
-                                # For non-regex search phrases, escape special characters
-                                pattern = re.escape(search_phrase)
-                            else:
-                                pattern = search_phrase
+                        # Search for patterns within words
+                        found_patterns = search_within_words(file_contents, search_patterns)
 
-                            matches = re.findall(pattern, file_contents, re.IGNORECASE)
+                        # Write the findings to the output file
+                        for pattern, matches in found_patterns.items():
                             if matches:
-                                # Write the findings to the output file
-                                f.write(f"Found '{search_phrase}' in file '{file_path}': {matches}\n")
+                                f.write(f"Found '{pattern}' in file '{file_path}': {matches}\n")
 
                     except Exception as e:
                         # Print detailed error message
@@ -109,6 +111,7 @@ def search_and_report():
     # Enable the Search button and set the completion message
     button_search.config(state=tk.NORMAL)
     label_status.config(text="Search completed.")
+    progress_value.set(0)  # Clear the progress bar
     messagebox.showinfo("Search Completed", "Search and report generation completed.")
 
 # Create the main application window
@@ -124,7 +127,7 @@ label_password = tk.Label(app, text="Enter the decryption password (optional):")
 entry_password = tk.Entry(app, show="*")  # Password entry field
 
 # Create and configure buttons
-button_search = tk.Button(app, text="Search and Report", command=search_and_report)
+button_search = tk.Button(app, text="Search and Report", command=lambda: threading.Thread(target=search_and_report).start())
 button_browse_search = tk.Button(app, text="Browse", command=lambda: entry_search_path.insert(0, filedialog.askdirectory()))
 button_browse_report = tk.Button(app, text="Browse", command=lambda: entry_report_path.insert(0, filedialog.asksaveasfilename(defaultextension=".txt")))
 

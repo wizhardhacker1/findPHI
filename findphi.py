@@ -10,6 +10,7 @@ from PyPDF2 import PdfReader
 import datetime
 import dateutil.parser as parser
 
+
 # Function to add specific terms to the list
 def add_specific_terms():
     terms_text = entry_search_term.get()
@@ -22,6 +23,7 @@ def add_specific_terms():
                 search_terms.append((html.escape(term), "Specific Term"))
         label_status.config(text="Specific Terms Added")
 
+
 # Function to search for patterns within words using regular expressions
 def search_within_words(text, patterns):
     found = []
@@ -31,6 +33,7 @@ def search_within_words(text, patterns):
             found.append((label, match.group(0)))
     return found
 
+
 # Function to parse a date-like string into a date object
 def parse_date(date_string):
     try:
@@ -38,6 +41,7 @@ def parse_date(date_string):
         return parsed_date.date()
     except ValueError:
         return None
+
 
 # Function to search and report
 def search_and_report():
@@ -51,7 +55,7 @@ def search_and_report():
     # Define the search patterns
     search_patterns = [
         (r'\d{3}-\d{2}-\d{4}', "Possible SSN"),  # SSN-like pattern
-        (r'\d{2}/\d{2}/\d{4}', "Possible DOB"),  # DOB-like pattern (XX/XX/XXXX or XX-XX-XXXX)
+        (r'(\d{2}/\d{2}/\d{4}|\d{4}-\d{2}-\d{2})', "Possible DOB"),  # DOB-like pattern (XX/XX/XXXX or XX-XX-XXXX)
     ]
 
     found_results = {
@@ -146,8 +150,35 @@ def search_and_report():
     # Generate individual HTML reports for each section
     generate_html_reports(output_directory, found_results)
 
+    # Create an index HTML file with links to the reports
+    create_index_html(output_directory)
+
     # Display a message box indicating the search is complete
-    messagebox.showinfo("Search Completed", "Search and report generation completed. Results saved to the output directory.")
+    messagebox.showinfo("Search Completed",
+                        "Search and report generation completed. Results saved to the output directory.")
+
+
+# Function to create an index HTML file with links to the reports
+def create_index_html(output_directory):
+    index_file_path = os.path.join(output_directory, "Report_Findings.html")
+
+    with open(index_file_path, 'w') as index_file:
+        index_file.write("<html><head><title>Report Findings</title></head><body>")
+        index_file.write("<h1>Report Findings</h1>")
+
+        # Create links to individual reports
+        report_links = [
+            ("SSN Report", "possible_ssn_report.html"),
+            ("Password Report", "possible_password_report.html"),
+            ("DOB Report", "possible_dob_report.html"),
+            ("Custom Search", "specific_terms_report.html"),
+        ]
+
+        for report_name, report_filename in report_links:
+            index_file.write(f"<p><a href='{report_filename}'>{report_name}</a></p>")
+
+        index_file.write("</body></html>")
+
 
 # Function to generate individual HTML reports for each section
 def generate_html_reports(output_directory, found_results):
@@ -167,6 +198,7 @@ def generate_html_reports(output_directory, found_results):
                 f.write("</table>")
                 f.write("</body></html>")
 
+
 # Function to find potential passwords using a simple pattern (uppercase, lowercase, and digit)
 def find_potential_passwords(text):
     potential_passwords = []
@@ -181,6 +213,7 @@ def find_potential_passwords(text):
                 potential_passwords.append(word)
 
     return potential_passwords
+
 
 # Create the main application window
 app = tk.Tk()
